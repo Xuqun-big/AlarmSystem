@@ -12,23 +12,23 @@ namespace Hans.MV.Alarm
     public enum CompareType
     {
         /// <summary>
-        /// 等于
+        /// 值等于限制
         /// </summary>
         Equal=1,
         /// <summary>
-        /// 大于
+        /// 值大于限制
         /// </summary>
         Greater=2,
         /// <summary>
-        /// 小于
+        /// 值小于限制
         /// </summary>
         Fewer=3,
         /// <summary>
-        /// 大于等于
+        /// 值大于等于限制
         /// </summary>
         GreaterEqual=4,
         /// <summary>
-        /// 小于等于
+        /// 值小于等于限制
         /// </summary>
         FewerEqual=5
     }
