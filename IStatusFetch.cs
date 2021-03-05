@@ -16,5 +16,9 @@ namespace Hans.MV.Alarm
         /// </summary>
         /// <returns>可进行数值大小比较的状态值</returns>
         IComparable FetchStatus();
+        /// <summary>
+        /// 获取状态接口的附加信息
+        /// </summary>
+        string Message { get; set; }
     }
 }

@@ -10,65 +10,93 @@ namespace Hans.MV.Alarm
 {
     /// <summary>
     /// 单个报警类
-    /// 每个实例中触发的所有报警响应行为都是一致的
+    /// 每个实例中触发的所有同一级别的报警时，所有的响应行为都是一致的
     /// </summary>
-    public abstract class AlertEngine
+    public class AlertEngine
     {
         #region 私有字段
-        private readonly Dictionary<AlertLevel, List<IResponseBehavior>> Response = new Dictionary<AlertLevel, List<IResponseBehavior>>();
-        private readonly List<IResponseBehavior> WarmResponse = new List<IResponseBehavior>();
-        private readonly List<IResponseBehavior> AlarmResponse = new List<IResponseBehavior>();
-        private readonly Dictionary<IStatusFetch, StatusTrigger> Trigger=new Dictionary<IStatusFetch, StatusTrigger>();
-        private readonly Dictionary<IStatusFetch, AlertLevel> SavedValue = new Dictionary<IStatusFetch, AlertLevel>();
-        private readonly Dictionary<IStatusFetch, DateTime> SavedTime = new Dictionary<IStatusFetch, DateTime>();
-        private readonly Dictionary<AlertLevel, bool> SavedResponse = new Dictionary<AlertLevel, bool>();
+        //private readonly Dictionary<AlertLevel, List<IResponseBehavior>> Response = new Dictionary<AlertLevel, List<IResponseBehavior>>();
+        //private readonly List<IResponseBehavior> WarmResponse = new List<IResponseBehavior>();
+        //private readonly List<IResponseBehavior> AlarmResponse = new List<IResponseBehavior>();
+        //private readonly Dictionary<IStatusFetch, StatusTrigger> Trigger=new Dictionary<IStatusFetch, StatusTrigger>();
+        //private readonly Dictionary<IStatusFetch, AlertLevel> SavedValue = new Dictionary<IStatusFetch, AlertLevel>();
+        //private readonly Dictionary<IStatusFetch, DateTime> SavedTime = new Dictionary<IStatusFetch, DateTime>();
+        //private readonly Dictionary<AlertLevel, bool> SavedResponse = new Dictionary<AlertLevel, bool>();
+        private readonly List<TriggerModel> triggerModels = new List<TriggerModel>();
+        private readonly List<ResponseModel> responseModels = new List<ResponseModel>();
         private bool engineStatue = false;
         private int milliSeconds = 0;
         private CancellationTokenSource Cancellation = new CancellationTokenSource();
+        private string name="";
         #endregion
         #region 公共方法
+        /// <summary>
+        /// 报警系统的名称
+        /// </summary>
+        public virtual string Name { get => name; set => name = value; }
         /// <summary>
         /// 给指定等级添加一个报警行为
         /// </summary>
         /// <param name="level">报警等级</param>
         /// <param name="behavior">报警后要执行的行为</param>
-        public void AddResponse(AlertLevel level,IResponseBehavior behavior)
+        public virtual void AddResponse(AlertLevel level,IResponseBehavior behavior)
         {
             if (level == AlertLevel.None)
                 return;
-            if (!Response[level].Contains(behavior))
-                Response[level].Add(behavior);
+            ResponseModel s= responseModels.FirstOrDefault(x => x.Level == level);
+            if (!s.Responses.Contains(behavior))
+                s.Responses.Add(behavior);
         }
         /// <summary>
         /// 移除一个指定等级的报警行为
         /// </summary>
         /// <param name="level">报警等级</param>
         /// <param name="behavior">报警后要执行的行为</param>
-        public void RemoveResponse(AlertLevel level,IResponseBehavior behavior)
+        public virtual void RemoveResponse(AlertLevel level,IResponseBehavior behavior)
         {
             if (level == AlertLevel.None)
                 return;
-            if (Response[level].Contains(behavior))
-                Response[level].Remove(behavior);
+            ResponseModel s = responseModels.FirstOrDefault(x => x.Level == level);
+            if (s.Responses.Contains(behavior))
+                s.Responses.Remove(behavior);
         }
         /// <summary>
         /// 添加一个报警触发器
         /// </summary>
         /// <param name="fetch">获取报警条件的对象</param>
         /// <param name="trigger">根据报警对象触发报警等级的对象</param>
-        public void AddTrigger(IStatusFetch fetch,StatusTrigger trigger)
+        public virtual void AddTrigger(IStatusFetch fetch,StatusTrigger trigger)
         {
-            Trigger[fetch] = trigger;
+            TriggerModel s = triggerModels.FirstOrDefault(x => x.Fetch == fetch);
+            if (s != null)
+                s.Trigger = trigger;
+            else
+            {
+                s = new TriggerModel() { Fetch = fetch, Trigger = trigger };
+                triggerModels.Add(s);
+            }
+        }
+        /// <summary>
+        /// 移除一个报警触发器
+        /// </summary>
+        /// <param name="fetch">获取报警条件的对象</param>
+        public virtual void RemoveTrigger(IStatusFetch fetch)
+        {
+            TriggerModel s = triggerModels.FirstOrDefault(x=>x.Fetch==fetch);
+            if (s != null)
+                triggerModels.Remove(s);
         }
         /// <summary>
         /// 初始化报警系统
         /// </summary>
         public virtual void InitialEngine()
         {
-            Response.Add(AlertLevel.Warm, WarmResponse);
-            Response.Add(AlertLevel.Alarm, AlarmResponse);
-            SavedResponse.Add(AlertLevel.Warm,false);
-            SavedResponse.Add(AlertLevel.Alarm,false);
+            foreach (var s in Enum.GetValues(typeof(AlertLevel)))
+            {
+                AlertLevel level = (AlertLevel)s;
+                if (level != AlertLevel.None)
+                    responseModels.Add(new ResponseModel() { Level=level});
+            }
         }
         /// <summary>
         /// 当前报警系统的运行状态
@@ -98,84 +126,78 @@ namespace Hans.MV.Alarm
                     DateTime t1 = DateTime.Now;
                     Task t = EngineTask(Cancellation);
                     Task.WaitAll(t);
-                    milliSeconds = (int)(DateTime.Now - t1).TotalMilliseconds;
                     t = DoResponse();
                     Task.WaitAny(t);
+                    milliSeconds = (int)(DateTime.Now - t1).TotalMilliseconds;
                 }
             });
         }
+        /// <summary>
+        /// 根据报警等级作出报警响应的线程
+        /// </summary>
+        /// <returns></returns>
         private async Task DoResponse()
         {
             await Task.Run(()=>
             { 
-                foreach (var s in Response)
+                foreach (var s in responseModels)
                 {
                     bool res = false;
-                    if (SavedValue.Values.Contains(s.Key))
+                    if (triggerModels.Exists(x=>x.OldLevel==s.Level))
                     {
                         res = true;
                     }
-                    if (res != SavedResponse[s.Key])
+                    if (res != s.SavedResponse)
                     {
                         if (res)
                         {
-                            foreach (var p in s.Value)
+                            foreach (var p in s.Responses)
                                 Task.Factory.StartNew(() =>
                                 {
                                     p.OnCommand();
                                 });
+                            EngineAlertTrigged?.Invoke(this,s.Level);
                         }
                         else
                         {
-                            foreach (var p in s.Value)
+                            foreach (var p in s.Responses)
                                 Task.Factory.StartNew(() => {
                                     p.Undo();
                                 });
                         }
                     }
-                    SavedResponse[s.Key] = res;
+                    s.SavedResponse = res;
                 }
             });
         }
+        /// <summary>
+        /// 扫描所有报警触发器的线程
+        /// </summary>
+        /// <param name="cancellationToken">取消扫描</param>
+        /// <returns></returns>
         private async Task EngineTask(CancellationTokenSource cancellationToken)
         {
             await Task.Run(() =>
             {
-                foreach (var s in Trigger)
+                foreach (var s in triggerModels)
                 {
-                    var value = s.Key.FetchStatus();
-                    AlertLevel level = s.Value.GetAlertLevel(value);
-                    if (SavedValue.ContainsKey(s.Key))
+                    var value = s.Fetch.FetchStatus();
+                    AlertLevel level = s.Trigger.GetAlertLevel(value);
+                    if (s.OldLevel != level)
                     {
-                        if (SavedValue[s.Key] != level)
+                        if (level == AlertLevel.None)
                         {
-                            if (level == AlertLevel.None)
-                            {
-                                Task.Factory.StartNew(
-                                    () => SingleAlertTrigged?.Invoke(s.Key,SavedTime[s.Key],DateTime.Now)
-                                    );
-                                
-                            }
-                            else
-                            {
-                                if(SavedValue[s.Key]!=AlertLevel.None)
-                                    SavedTime[s.Key] = DateTime.Now;
-                                Task.Factory.StartNew(()=> SingleAlertTrigged?.Invoke(s.Key, AlertLevel.None, level));
-                            }
-                            SavedValue[s.Key] = level;
+                            Task.Factory.StartNew(
+                                () => SingleAlertEnd?.Invoke(s.Fetch,s.OldTime)
+                                );
                         }
-                    }
-                    else
-                    {
-                        SavedValue[s.Key] = level;
-                        if (level != AlertLevel.None)
+                        else
                         {
-                            SavedTime[s.Key] = DateTime.Now;
-                            Task.Factory.StartNew(() =>
-                            {
-                                SingleAlertTrigged?.Invoke(s.Key, AlertLevel.None, level);
-                            });
+                            if(s.OldLevel==AlertLevel.None)
+                                s.OldTime = DateTime.Now;
+                            Task.Factory.StartNew(()=> SingleAlertTrigged?.Invoke(s.Fetch, value));
                         }
+                        s.OldLevel = level;
                     }
                     if (cancellationToken.IsCancellationRequested)
                         break;

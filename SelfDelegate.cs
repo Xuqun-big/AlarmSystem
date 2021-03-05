@@ -12,14 +12,14 @@ namespace Hans.MV.Alarm
     /// <param name="fetch">单个报警监控对象</param>
     /// <param name="BeforValue">报警前值</param>
     /// <param name="NewValue">报警后值</param>
-    public delegate void RaiseSingleAlertTrigged(IStatusFetch fetch,IComparable BeforValue,IComparable NewValue);
+    public delegate void RaiseSingleAlertTrigged(IStatusFetch fetch,IComparable NewValue);
     /// <summary>
     /// 单个报警结束事件
     /// </summary>
     /// <param name="fetch">单个报警监控对象</param>
     /// <param name="BeforValue">报警时间</param>
     /// <param name="NewValue">结束时间</param>
-    public delegate void RaiseSingleAlertEnd(IStatusFetch fetch, DateTime BeforValue, DateTime NewValue);
+    public delegate void RaiseSingleAlertEnd(IStatusFetch fetch, DateTime BeforValue);
     /// <summary>
     /// 整个报警系统报警触发
     /// </summary>
