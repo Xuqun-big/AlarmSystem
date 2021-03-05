@@ -9,8 +9,7 @@ namespace Hans.MV.Alarm
     /// <summary>
     /// 状态比较器，用于触发当前的报警等级
     /// </summary>
-    /// <typeparam name="T">一种可比较的数值类型</typeparam>
-    public class StatusTrigger<T>where T:IComparable
+    public class StatusTrigger
     {
         private readonly List<AlertCompare> compares = new List<AlertCompare>();
         /// <summary>
@@ -18,7 +17,7 @@ namespace Hans.MV.Alarm
         /// </summary>
         /// <param name="status">值的状态</param>
         /// <returns>报警等级</returns>
-        public virtual AlertLevel GetAlertLevel(T curValue)
+        public virtual AlertLevel GetAlertLevel(IComparable curValue)
         { 
             foreach(var s in compares)
             {
@@ -33,7 +32,7 @@ namespace Hans.MV.Alarm
         /// </summary>
         /// <param name="base1">传入一个基础比较单元</param>
         /// <param name="level">比较成功后触发的报警等级</param>
-        public virtual void AddParam(ICompareBase<T> base1, AlertLevel level)
+        public virtual void AddParam(ICompareBase base1, AlertLevel level)
         {
             AlertCompare singleCompare = new AlertCompare();
             singleCompare.Base1 = (BaseCompare)base1;
@@ -47,7 +46,7 @@ namespace Hans.MV.Alarm
         /// <param name="base1">传入第一个基础比较单元</param>
         /// <param name="base2">传入第二个基础比较单元</param>
         /// <param name="level">比较成功后触发的报警等级</param>
-        public virtual void AddParam(ICompareBase<T> base1, ICompareBase<T> base2, AlertLevel level)
+        public virtual void AddParam(ICompareBase base1, ICompareBase base2, AlertLevel level)
         {
             AlertCompare singleCompare = new AlertCompare();
             singleCompare.Base1 = (BaseCompare)base1;
@@ -62,34 +61,35 @@ namespace Hans.MV.Alarm
         /// <summary>
         /// 用于大小比较的基础结构体
         /// </summary>
-        public struct BaseCompare:ICompareBase<T>
+        public struct BaseCompare:ICompareBase
         {
             public CompareType comparetype;
-            public T compareValue;
-            public bool DoCompare(T curValue)
+            public IComparable compareValue;
+            public bool DoCompare(IComparable curValue)
             {
-                switch (comparetype) {
-                    case CompareType.Equal:
-                        if (((IComparable)curValue).CompareTo(compareValue) ==0)
-                            return true;
-                        break;
-                    case CompareType.Greater:
-                        if (((IComparable)curValue).CompareTo(compareValue) <0)
-                            return true;
-                        break;
-                    case CompareType.Fewer:
-                        if (((IComparable)curValue).CompareTo(compareValue) > 0)
-                            return true;
-                        break;
-                    case CompareType.GreaterEqual:
-                        if (((IComparable)curValue).CompareTo(compareValue) <= 0)
-                            return true;
-                        break;
-                    case CompareType.FewerEqual:
-                        if (((IComparable)curValue).CompareTo(compareValue) >= 0)
-                            return true;
-                        break;
-                }
+                if(curValue.GetType().Equals(compareValue.GetType()))
+                    switch (comparetype) {
+                        case CompareType.Equal:
+                            if (curValue.CompareTo(compareValue) ==0)
+                                return true;
+                            break;
+                        case CompareType.Greater:
+                            if (curValue.CompareTo(compareValue) <0)
+                                return true;
+                            break;
+                        case CompareType.Fewer:
+                            if (curValue.CompareTo(compareValue) > 0)
+                                return true;
+                            break;
+                        case CompareType.GreaterEqual:
+                            if (curValue.CompareTo(compareValue) <= 0)
+                                return true;
+                            break;
+                        case CompareType.FewerEqual:
+                            if (curValue.CompareTo(compareValue) >= 0)
+                                return true;
+                            break;
+                    }
                 return false;
             }
 
@@ -102,7 +102,7 @@ namespace Hans.MV.Alarm
             public Nullable<BaseCompare> Base1;
             public Nullable<BaseCompare> Base2;
             public AlertLevel Level;
-            public AlertLevel DoLevelCompare(T curValue)
+            public AlertLevel DoLevelCompare(IComparable curValue)
             {
                 if (Base1 != null && Base2 != null)
                 {

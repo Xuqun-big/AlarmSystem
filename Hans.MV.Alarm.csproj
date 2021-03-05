@@ -48,6 +48,7 @@
     <Compile Include="IResponseBehavior.cs" />
     <Compile Include="IStatusFetch.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SelfDelegate.cs" />
     <Compile Include="StatusTrigger.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
